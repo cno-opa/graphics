@@ -1,12 +1,10 @@
-#Spatial-OPA.r
-#Some useful functions that make working with spatial data in R much easier
-#most functions are only useful for New Orleans data, though some can be adapted/generalized for use in other areas
+# mappers.r
+# Some useful functions that make working with spatial data in R much easier
+# Most functions are only useful for New Orleans data, though some can be adapted/generalized for use in other areas
 
 
 ### Init
 setInternet2(TRUE)
-packages = "C:\\RWorkingDir\\RPackages"
-.libPaths(packages)
 library(grid)
 library(gridExtra)
 library(gtable)
@@ -73,6 +71,13 @@ getCouncil <- function(){
 	} else{council <- council.abc.abc}
 	return(council)
 }
+getNbhds <- function(){
+	if(exists("nbhds.abc.abc")==FALSE){
+		nbhds <- zipToSpatial("https://data.nola.gov/api/geospatial/ukvx-5dku?method=export&format=Shapefile")
+		nbhds.abc.abc <<- nbhds
+	} else{nbhds <- nbhds.abc.abc}
+	return(nbhds)
+}
 getParcels <- function(){
 	if(exists("parcels.abc.abc")==FALSE){
 		parcels <- zipToSpatial("http://data.nola.gov/api/geospatial/e962-egyh?method=export&format=Shapefile")
@@ -105,7 +110,7 @@ getTracts <- function(){
 csvFromWeb <- function(file.source){
 	#given a dl link, reads in a csv. This is also a generic function with uses outside of spatial analysis.
 	target.dir <- getwd()
-	file.loc <- paste0(target.dir, "\\file.csv")
+	file.loc <- paste0(target.dir, "/file.csv")
 	download.file(file.source, file.loc)
 	csv <- read.csv(file.loc)
 	file.remove(file.loc)
@@ -169,16 +174,24 @@ geopinsToPoints <- function(df, geopin.col="GEOPIN"){
 #geopin.col: name of the column in df with geopins
 	NOLA.proj <- CRS("+proj=lcc +lat_1=29.3 +lat_2=30.7 +lat_0=28.5 +lon_0=-91.33333333333333 +x_0=999999.9999999999 +y_0=0 +datum=NAD83 +units=us-ft +no_defs +ellps=GRS80 +towgs84=0,0,0")
 	parcels <- getParcels()
+
 	names(df)[which(names(df)==geopin.col)] <- "GEOPIN"
+	df$ID.for.match <- 10:(nrow(df)+9)
+	geo.cols <- c("ID.for.match", "GEOPIN")
 	valid  <- df$GEOPIN %in% parcels$GEOPIN
 	df <- df[valid,]
-	parcels.sub <- merge(x=parcels, y=df, all.x=FALSE, duplicateGeoms=TRUE)
+
+	parcels.sub <- merge(x = parcels, y = df, all.x = FALSE, duplicateGeoms = FALSE)
+	parcels.sub <- parcels.sub[order(parcels.sub$ID.for.match), ]
 	df.coords <- data.frame(coordinates(parcels.sub))
-	#names(df.coords) <- names(df)
 	colnames(df.coords) <- c("X","Y")
 	df <- cbind(df.coords, df)
+	#just.geo <- cbind(df.coords, just.geo)
+	#df.final <- merge(just.geo, just.attr)
+	df.coords <- select(df, c(X, Y))
 	df.sp <- SpatialPointsDataFrame(coords=df.coords, data=df, proj4string=NOLA.proj)
-
+	df.sp <- df.sp[, -which(names(df.sp) == "ID.for.match")]
+	return(df.sp)
 }
 
 ### Mapping functions
@@ -193,7 +206,7 @@ mapOPApoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.03
 # style: either "single" to display all points in the same color or a column of pts to control symbology
 # fill: point color(s)...if style != "single" this should be a vector equal to the number of classes for factors or high/low values for continuous
 # old.map: either "new" to plot a new map or the name of an existing ggmap to add points
-# labs: label names (for continuous data with breaks)
+# labs: label names (for continuous data with breaks). If not supplied, the default labels given by cut() are used
 	dots <- list(...)
 
 	if(is.data.frame(pts)){pts <- toSpatialPoints(df=pts, X=X, Y=Y)}
@@ -254,7 +267,10 @@ mapOPApoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.03
 		#	}
 		#	lab.n <- paste(">", brks[length(brks)-1] )
 		#	labs <- append(labs, lab.n)
-			cats <- cut(x = style.col, breaks = brks, labels = labs, include.lowest=TRUE)
+			if(is.null(dots$labs)){
+				cats <- cut(x = style.col, breaks = brks, include.lowest=TRUE)
+			} else{cats <- cut(x = style.col, breaks = brks, labels = dots$labs, include.lowest=TRUE)}
+
 			pts[style] <- cats
 		}
 
@@ -278,26 +294,26 @@ mapOPApoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.03
 }
 
 mapOPApoly <- function(geom, poly.dat="", id.var="", title="Map!", location=c(-90.031742, 29.996680), zoom=12,
-	style="single", fill="black", alpha=.5, piping=FALSE, old.map="new", plot.all=FALSE, labs = "", ...){
+	style="single", fill="black", alpha=.5, piping=FALSE, old.map="new", plot.all=FALSE, ...){
 # maps polygons, given either a SpatialPolygons object OR a common geography type and a table of characteristics
 # geom: either a SpatialPolygons object or one of c("parcels", "blocks", "BGs", "tracts")
 # poly.dat: if geom is a geography type, data frame containing information about the geography
 # id.var: if poly.dat is present, the name of the column with common ID vars as geom
 	# either geopins for parcels or GEOID10 for census
 # style: either "single" to display all points in the same color or a column of pts to control symbology
-# labs: label names (for continuous data with breaks)
+# labs: label names (for continuous data with breaks). If not supplied, the default labels given by cut() are used
 
 	dots <- list(...)
 
 	#if relevant, get geometric data
 	if(is.character(geom)){
-		if(geom=="parcels"){
+		if(geom == "parcels"){
 			geom <- getParcels()
-		} else if(geom=="blocks"){
+		} else if(geom == "blocks"){
 			geom <- getBlocks()
-		} else if(geom=="BGs"){
+		} else if(geom == "BGs"){
 			geom <- getBGs()
-		} else if(geom=="tracts"){
+		} else if(geom == "tracts"){
 			geom <- getTracts()
 		}
 
@@ -309,7 +325,7 @@ mapOPApoly <- function(geom, poly.dat="", id.var="", title="Map!", location=c(-9
 		names(poly.dat)[id.ind] <- "id.var"
 		geom$id.var<- as.character(geom$id.var)
 		poly.dat$id.var <- as.character(poly.dat$id.var)
-		geom <- merge(x=geom, y=poly.dat, all.x=plot.all, duplicateGeoms=TRUE)
+		geom <- merge(x=geom, y=poly.dat, all.x=plot.all, duplicateGeoms=FALSE) #The duplicateGeoms calls could cause some unexpected behavior
 	}
 	geom <- spTransform(geom, CRS("+init=epsg:4326"))
 
@@ -367,8 +383,9 @@ mapOPApoly <- function(geom, poly.dat="", id.var="", title="Map!", location=c(-9
 			#}
 			#lab.n <- paste(">", brks[length(brks)-1] )
 			#labs <- append(labs, lab.n)
-
-			cats <- cut(x = unlist(poly.final[style]), breaks = brks, labels = labs, include.lowest=TRUE)
+			if(is.null(dots$labs)){
+			cats <- cut(x = unlist(poly.final[style]), breaks = brks, include.lowest=TRUE)
+			} else{cats <- cut(x = unlist(poly.final[style]), breaks = brks, labels = dots$labs, include.lowest=TRUE)}
 			poly.final[style] <- cats
 		}
 
@@ -397,16 +414,50 @@ mapOPApoly <- function(geom, poly.dat="", id.var="", title="Map!", location=c(-9
 	return(map)
 }
 
+cleanLeaflet <- function(spatial, fields, simplify.poly = FALSE){
+	# Cleans a spatial object for use in a leaflet map.
+	# This is useful because the mapOPALeaflet function is not very robust.
+	# If you want to do something that isn't supported,
+	# you can use this function to put your spatial data in a useable form
+	# and then define styles and write geojsons ad hoc
+	# spatial: a spatial object (points, lines, polygons) to be mapped
+	# fields: the fields you want to keep for the leaflet popup
+	# simplify.poly: simplify the polygon geometry?
+	# Separate geometry from data and process each, then recombine
+	spatial.geom <- geometry(spatial)
+	spatial.geom <- spTransform(spatial.geom, CRS("+init=epsg:4326"))
 
-mapOPALeaflet <- function(spatial, fields, style, prop="", title, base.map = "osm", fill="black", geojson.exists = FALSE, simplify.poly = FALSE, ...){
+	if(is(spatial.geom, "SpatialPolygons") & simplify.poly == TRUE){
+		spatial.geom <- gSimplify(spatial.geom, tol=0.01, topologyPreserve=TRUE)
+	}
+
+	spatial.dat <- spatial@data
+	spatial.dat <- spatial.dat[,fields]
+	#leaflet doesn't like some special characters including "\". This removes those.
+	#If you get an error about a different invalid character, add the character to remove
+	remove <- c("\\\\", "\"")
+	spatial.dat <- as.data.frame(lapply(spatial.dat, function(x) gsub(paste(remove,collapse="|"), "", x)))
+
+	if(is(spatial.geom, "SpatialPoints")){
+		spatial <- SpatialPointsDataFrame(spatial.geom, data = spatial.dat)
+		rownames(spatial@coords) <- rownames(spatial@data)
+	} else if(is(spatial.geom, "SpatialPolygons")){
+		rownames(spatial.dat) <- sapply(slot(spatial.geom, "polygons"), function(x) slot(x, "ID"))
+		spatial <- SpatialPolygonsDataFrame(spatial.geom, data = spatial.dat)
+	} else if(is(spatial.geom, "SpatialLines")){
+		spatial <- SpatialLinesDataFrame(spatial.geom, data = spatial.dat) #may have to change rownames of spatial.dat as with polygons
+	} else(stop(paste0("Geometry type: ", class(spatial.geom)[1], "not currently supported")))
+
+	return(spatial)
+}
+
+mapOPALeaflet <- function(spatial, fields, style = "", title, base.map = "osm", fill="black", geojson.exists = FALSE, simplify.poly = FALSE, ...){
 	# maps a Spatial object on an interactive leaflet map
 	# note that even for moderately sized objects, writing the geojson can take a while
 	# for now this can only map one object at a time
 	# spatial: a spatial object (points, lines, polygons) to be mapped
 	# fields: the fields you want to display in the popup
-	# style: one of c("single", "cat", "multi")
 	# title: name of the map (will also be name of the geojson/html file)
-	# prop: field to perform grad or cat styling
 	# geojson.exists: is there a geojson file already made? Only set TRUE if you just want to play with the styling
 	# simplify.poly: simplify the polygon geometry?
 	dots <- list(...)
@@ -428,29 +479,7 @@ mapOPALeaflet <- function(spatial, fields, style, prop="", title, base.map = "os
 		fill.alpha <- .5
 	} else{fill.alpha <- dots$fill.alpha}
 
-	# Separate geometry from data and process each, then recombine
-	spatial.geom <- geometry(spatial)
-	spatial.geom <- spTransform(spatial.geom, CRS("+init=epsg:4326"))
-
-	if(is(spatial.geom, "SpatialPolygons") & simplify.poly == TRUE){
-		spatial.geom <- gSimplify(spatial.geom, tol=0.01, topologyPreserve=TRUE)
-	}
-
-	spatial.dat <- spatial@data
-	spatial.dat <- spatial.dat[,fields]
-	#leaflet doesn't like some special characters including "\". This removes those.
-	#If you get an error about a different invalid character, add the character to remove
-	remove <- c("\\\\", "\"")
-	spatial.dat <- as.data.frame(lapply(spatial.dat, function(x) gsub(paste(remove,collapse="|"), "", x)))
-
-	if(is(spatial.geom, "SpatialPoints")){
-		spatial <- SpatialPointsDataFrame(spatial.geom, data = spatial.dat)
-	} else if(is(spatial.geom, "SpatialPolygons")){
-		rownames(spatial.dat) <- sapply(slot(spatial.geom, "polygons"), function(x) slot(x, "ID"))
-		spatial <- SpatialPolygonsDataFrame(spatial.geom, data = spatial.dat)
-	} else if(is(spatial.geom, "SpatialLines")){
-		spatial <- SpatialLinesDataFrame(spatial.geom, data = spatial.dat) #may have to change rownames of spatial.dat as with polygons
-	} else(stop(paste0("Geometry type: ", class(spatial.geom)[1], "not currently supported")))
+	spatial <- cleanLeaflet(spatial = spatial, fields = fields, simplify.poly = simplify.poly)
 
 	#Define style
 	if(style == "single"){
@@ -459,7 +488,7 @@ mapOPALeaflet <- function(spatial, fields, style, prop="", title, base.map = "os
 
 	} else if(!is.null(dots$breaks)){
 		breaks <- dots$breaks
-		prop.vec <- unlist(spatial.dat[style])
+		prop.vec <- unlist(spatial@data[style])
 		prop.num <- as.numeric(as.character(prop.vec))
 
 		if(is.numeric(breaks)){
@@ -473,7 +502,7 @@ mapOPALeaflet <- function(spatial, fields, style, prop="", title, base.map = "os
 
 	} else {  #cat/grad radius not currently supported, though its relatively easy to adapt code
 
-		prop.vec <- unlist(spatial.dat[style])
+		prop.vec <- unlist(spatial@data[style])
 		prop.vec <- as.character(prop.vec)
 
 		if(is.null(dots$val)){
@@ -481,6 +510,7 @@ mapOPALeaflet <- function(spatial, fields, style, prop="", title, base.map = "os
 			} else{val <- dots$val}
 
 		sty <- styleCat(prop = style, val = val, style.par = "col", style.val = fill, col = col, lwd = lwd, alpha = alpha, fill.alpha = fill.alpha, rad = rad, leg = dots$legend.text)
+		sty <- styleCat(prop = style, val = val, style.par = "col", style.val = fill)
 
 	}
 
@@ -489,9 +519,61 @@ mapOPALeaflet <- function(spatial, fields, style, prop="", title, base.map = "os
 	leafdat <- paste0(getwd(), "/", title, ".geojson")
 
 	if(geojson.exists == FALSE){toGeoJSON(data = spatial, name = title)}
-	final.map <- leaflet(data = leafdat, style = sty, title=title, base.map=base.map, incl.data=TRUE,  popup=names(spatial.dat))
+	final.map <- leaflet(data = leafdat, style = sty, title=title, base.map=base.map, incl.data=TRUE,  popup=names(spatial))
 	browseURL(final.map)
 }
+
+
+mapOPAMultiLeaflet <- function(spatial.list, fields, spatial.names, title, base.map = "osm", fill="black", geojson.exists = FALSE, ...){
+	# maps multiple Spatial objects on an interactive leaflet map
+	# note that even for moderately sized objects, writing the geojsons can take a while
+	# the leafletR package only supports single styles when using multiple
+	# spatial.list: a list of spatial objects (points, lines, polygons) to be mapped
+	# fields: a list of fields you want to display in the popup
+	# spatial.names: vector of the name of each spatial object as it will appear on a legend
+	# title: name of the map (will also be name of the geojson/html file)
+	# geojson.exists: is there a geojson file already made? Only set TRUE if you just want to play with the styling
+	# put all aesthetic settings in vectors of length spatial.list
+	dots <- list(...)
+	num.objects <- length(spatial.list)
+
+	#Defining aesthetics
+	if(is.null(dots$col)){
+		col <- rep("black", num.objects)
+	} else{col <- dots$col}
+	if(is.null(dots$rad)){
+		rad <- rep(4, num.objects)
+	} else{rad <- dots$rad}
+	if(is.null(dots$lwd)){
+		lwd <- rep(1, num.objects)
+	} else{lwd <- dots$lwd}
+	if(is.null(dots$alpha)){
+		alpha <- rep(1, num.objects)
+	} else{alpha <- dots$alpha}
+	if(is.null(dots$fill.alpha)){
+		fill.alpha <- rep(.5, num.objects)
+	} else{fill.alpha <- dots$fill.alpha}
+
+	#Defining styles and making geojsons
+	clean.spatial.list <- list()
+	sty.list <- list()
+	leafdat.list <- list()
+	for (i in 1:length(spatial.list)){
+		spatial <- cleanLeaflet(spatial = spatial.list[[i]], fields = fields[[i]], simplify.poly = FALSE)
+		sty <- styleSingle(col = col[i], lwd = lwd[i], alpha = alpha[i], fill = fill[i], fill.alpha = fill.alpha[i], rad = rad[i])
+		layer.name <- spatial.names[i]
+		leafdat <- paste0(getwd(), "/", layer.name, ".geojson")
+		clean.spatial.list[[i]] <- spatial #may not need this one
+		sty.list[[i]] <- sty
+		leafdat.list[[i]] <- leafdat
+		if(geojson.exists == FALSE){toGeoJSON(data = spatial, name = layer.name)}
+	}
+
+	#Make and pull up leaflet map (creates folder with html map in your wd)
+	final.map <- leaflet(data = leafdat.list, style = sty.list, title = title, base.map = base.map, incl.data = TRUE,  popup = fields)
+	browseURL(final.map)
+}
+
 
 
 
@@ -535,6 +617,22 @@ countWithin <- function(within, around, return.type="vec", ..., range){
 		return(count.within)
 	}
 }
+
+inWhich <- function(within, around, char){
+	# For a set of points, finds the characteristics of polygons that each point lies within
+	# useful for finding which council district, census tract, etc. a set of points is in
+	# within: points for which to find characteristics
+	# around: a set of polygons
+	# char: column name of around to search for
+	NOLA.proj <- CRS("+proj=lcc +lat_1=29.3 +lat_2=30.7 +lat_0=28.5 +lon_0=-91.33333333333333 +x_0=999999.9999999999 +y_0=0 +datum=NAD83 +units=us-ft +no_defs +ellps=GRS80 +towgs84=0,0,0")
+	within <- spTransform(within, NOLA.proj)
+	around <- spTransform(around, NOLA.proj)
+	char.df <- over(x = within, y = around)
+	char <- unlist(char.df[char])
+	char <- unname(char)
+	return(char)
+}
+
 
 #Example 1: Making a point map based on characteristics
 #abatement <- webToSpatialPoints(file.source="https://data.nola.gov/api/views/xv8z-gn8b/rows.csv?accessType=DOWNLOAD", X="XPos", Y="YPos")
