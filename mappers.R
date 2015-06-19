@@ -18,7 +18,6 @@ library(classInt)
 library(rgdal)
 library(ggmap)
 library(leafletR)
-theme_set(theme_opa()) #theme_opa() lives in plotters.R
 
 ### Functions for getting and processing Spatial data
 
