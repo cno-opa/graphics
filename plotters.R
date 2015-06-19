@@ -265,9 +265,21 @@ barOPA <- function(data, x, y, title = "Title", stat = "identity", position = "i
   dots <- eval(substitute(alist(...)))
 
   #get max y value and set breaks
-  ymax <- max(data[y], na.rm = TRUE)
-  brks <- pretty_breaks(4, min.n = 4)(0:ymax)
-  yul  <- brks[length(brks)]
+  if( position == "stack" ) {
+    x_ <- as.symbol(x)
+    y_ <- as.symbol(y)
+
+    group_sums <- group_by_(data, x_) %>%
+                  summarise(s = sum(y_))
+
+    ymax <- max(group_sums$s, na.rm = TRUE)
+    brks <- pretty_breaks(4, min.n = 4)(0:ymax)
+    yul  <- brks[length(brks)]
+  } else {
+    ymax <- max(data[y], na.rm = TRUE)
+    brks <- pretty_breaks(4, min.n = 4)(0:ymax)
+    yul  <- brks[length(brks)]
+  }
 
   #the basic base
   base <- ggplot(data, aes_string(x = x, y = y, fill = dots$fill)) +
