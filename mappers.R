@@ -234,71 +234,77 @@ geopinsToPoints <- function(df, geopin.col="GEOPIN"){
 }
 
 ### Mapping functions
-mapOPApoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.031742, 29.996680), zoom = 12, style = "single", fill = "black", old.map = "new", map_source = "stamen", map_type = "toner-lite", ...){
-# Given a data.frame or SpatialPointsDataFrame, creates a points map.
-# pts: df or SpatialPoints object
-# X: field name with X values
-# Y: field name with Y values
-# size: how large should the points be
-# title: name of the map
-# location/zoom:  parameters for the basemap...see help(get_map) for more details...defaults give a citywide view of New Orleans
-# style: either "single" to display all points in the same color or a column of pts to control symbology
-# fill: point color(s)...if style != "single" this should be a vector equal to the number of classes for factors or high/low values for continuous
-# old.map: either "new" to plot a new map or the name of an existing ggmap to add points
-# labs: label names (for continuous data with breaks). If not supplied, the default labels given by cut() are used
-# map_source: delcare "source" argument in "get_map" fn
-# map_type: declare "maptype" argument in "get_map" fn
+mapOPAPoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.031742, 29.996680), zoom = 12, style = "single", fill = "black", old.map = "new", map_source = "stamen", map_type = "toner-lite", ...){
+  # Given a data.frame or SpatialPointsDataFrame, creates a points map.
+  # pts: df or SpatialPoints object
+  # X: field name with X values
+  # Y: field name with Y values
+  # size: how large should the points be
+  # title: name of the map
+  # location/zoom:  parameters for the basemap...see help(get_map) for more details...defaults give a citywide view of New Orleans
+  # style: either "single" to display all points in the same color or a column of pts to control symbology
+  # fill: point color(s)...if style != "single" this should be a vector equal to the number of classes for factors or high/low values for continuous
+  # old.map: either "new" to plot a new map or the name of an existing ggmap to add points
+  # labs: label names (for continuous data with breaks). If not supplied, the default labels given by cut() are used
+  # map_source: delcare "source" argument in "get_map" fn
+  # map_type: declare "maptype" argument in "get_map" fn
 
 	dots <- list(...)
 
-	if(is.data.frame(pts)){pts <- toSpatialPoints(df=pts, X=X, Y=Y)}
+	if(is.data.frame(pts)) {
+    pts <- toSpatialPoints(df = pts, X = X, Y = Y)
+  }
 
 	pts <- spTransform(pts, CRS("+init=epsg:4326"))
 	pts <- as.data.frame(pts)
-	pts[X] <- pts[, ncol(pts)-1] # these lines may cause bugs down the line.
-								 # as.data.frame() should append the X and Y columns into the last 2 columns
-	pts[Y] <- pts[, ncol(pts)]   # of the data.frame, but that may not always be the case
+	# these lines may cause bugs down the line as.data.frame() should append the X and Y columns into the last 2 columns of the data.frame, but that may not always be the case
+  pts[X] <- pts[, ncol(pts)-1]
+	pts[Y] <- pts[, ncol(pts)]
 
 
 	# Setting plot aesthetics
-	if(old.map=="new"){
+	if(old.map == "new") {
 		basemap <- get_map(source = map_source, location = location, maptype = map_type, zoom = zoom)
 		map <- ggmap(basemap)
-	} else{map <- old.map}
+	} else {
+    map <- old.map
+  }
 
 	blank.theme <- theme(axis.line=element_blank(),axis.text.x=element_blank(),
-		axis.text.y=element_blank(),axis.ticks=element_blank(),
-		axis.title.x=element_blank(),
-		axis.title.y=element_blank(),
-		panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
-		panel.grid.minor=element_blank(),plot.background=element_blank())
+            		 axis.text.y=element_blank(),axis.ticks=element_blank(),
+            	 	 axis.title.x=element_blank(),
+            	 	 axis.title.y=element_blank(),
+            	   panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
+            	   panel.grid.minor=element_blank(),plot.background=element_blank())
 
 
 	# Finding style to use and setting class breaks if relevant:
-	if(style != "single"){
+	if(style != "single") {
 		style.col <- pts[,which(names(pts) == style)]
 		has.breaks <- !is.null(dots$breaks) | is.factor(style.col) | is.character(style.col)
-		if(!is.null(dots$breaks)){
+
+		if(!is.null(dots$breaks)) {
 			breaks <- dots$breaks
-			if(is.numeric(breaks)){
+
+      if(is.numeric(breaks)) {
 				brks <- append(breaks, max(style.col))
-			} else{
+			} else {
 				brks <- classIntervals(style.col, n = length(fill), style = breaks)$brks
 			}
 		}
 	}
 
 
-	if (style=="single"){ # single style
+	if (style == "single") { # single style
 
 		map <- map +
-		geom_point(aes_string(x = X, y = Y), data = pts, fill = fill, size = size, color="black", shape=21)+
-		blank.theme+
-		labs(title = title, x=NULL, y=NULL)
+		       geom_point(aes_string(x = X, y = Y), data = pts, fill = fill, size = size, color = "black", shape = 21) +
+		       blank.theme +
+		       labs(title = title, x = NULL, y = NULL)
 
-	} else if (has.breaks){ # factor/character or numeric with breaks
+	} else if (has.breaks) { # factor/character or numeric with breaks
 
-		if (is.numeric(style.col)){ ##having issues with labels when there are negative and small numbers
+		if (is.numeric(style.col)) { ##having issues with labels when there are negative and small numbers
 		#	labs <- c()
 		#	lab.1 <- paste("<=", brks[2])
 		#	labs <- append(labs, lab.1)
@@ -309,28 +315,30 @@ mapOPApoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.03
 		#	}
 		#	lab.n <- paste(">", brks[length(brks)-1] )
 		#	labs <- append(labs, lab.n)
-			if(is.null(dots$labs)){
-				cats <- cut(x = style.col, breaks = brks, include.lowest=TRUE)
-			} else{cats <- cut(x = style.col, breaks = brks, labels = dots$labs, include.lowest=TRUE)}
+			if(is.null(dots$labs)) {
+				cats <- cut(x = style.col, breaks = brks, include.lowest = TRUE)
+			} else {
+        cats <- cut(x = style.col, breaks = brks, labels = dots$labs, include.lowest = TRUE)
+      }
 
 			pts[style] <- cats
 		}
 
 		map <- map +
-		geom_point(aes_string(x = X, y = Y, fill = style), data = pts, size = size, color="black", shape=21)+
-		blank.theme+
-		labs(title = title, x=NULL, y=NULL)+
-		scale_fill_manual(values = fill)
+		       geom_point(aes_string(x = X, y = Y, fill = style), data = pts, size = size, color="black", shape=21) +
+		       blank.theme +
+		       labs(title = title, x=NULL, y=NULL) +
+		       scale_fill_manual(values = fill)
 
-	} else{ # continuous
+	} else { # continuous
 
-		min <- min(pts[style], na.rm=TRUE)
-		max <- max(pts[style], na.rm=TRUE)
+		min <- min(pts[style], na.rm = TRUE)
+		max <- max(pts[style], na.rm = TRUE)
 		map <- map +
-		geom_point(aes_string(x = X, y = Y, fill = style), data = pts, size = size, color="black", shape=21)+
-		blank.theme+
-		labs(title = title, x=NULL, y=NULL)+
-		scale_fill_continuous(low = fill[1], high = fill[2], limits=c(min, max))
+		       geom_point(aes_string(x = X, y = Y, fill = style), data = pts, size = size, color="black", shape=21) +
+		       blank.theme +
+		       labs(title = title, x = NULL, y = NULL) +
+		       scale_fill_continuous(low = fill[1], high = fill[2], limits = c(min, max))
 	}
 	return(map)
 }
