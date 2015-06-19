@@ -4,7 +4,7 @@
 
 
 ### Init
-setInternet2(TRUE) 
+setInternet2(TRUE)
 library(grid)
 library(gridExtra)
 library(gtable)
@@ -234,7 +234,7 @@ geopinsToPoints <- function(df, geopin.col="GEOPIN"){
 }
 
 ### Mapping functions
-mapOPApoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.031742, 29.996680), zoom = 12, style = "single", fill = "black", old.map = "new", ...){
+mapOPApoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.031742, 29.996680), zoom = 12, style = "single", fill = "black", old.map = "new", map_source = "stamen", map_type = "toner-lite", ...){
 # Given a data.frame or SpatialPointsDataFrame, creates a points map.
 # pts: df or SpatialPoints object
 # X: field name with X values
@@ -246,6 +246,9 @@ mapOPApoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.03
 # fill: point color(s)...if style != "single" this should be a vector equal to the number of classes for factors or high/low values for continuous
 # old.map: either "new" to plot a new map or the name of an existing ggmap to add points
 # labs: label names (for continuous data with breaks). If not supplied, the default labels given by cut() are used
+# map_source: delcare "source" argument in "get_map" fn
+# map_type: declare "maptype" argument in "get_map" fn
+
 	dots <- list(...)
 
 	if(is.data.frame(pts)){pts <- toSpatialPoints(df=pts, X=X, Y=Y)}
@@ -259,7 +262,7 @@ mapOPApoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.03
 
 	# Setting plot aesthetics
 	if(old.map=="new"){
-		basemap <- get_map(source="osm", location=location, maptype="roadmap", zoom=zoom)
+		basemap <- get_map(source = map_source, location = location, maptype = map_type, zoom = zoom)
 		map <- ggmap(basemap)
 	} else{map <- old.map}
 
