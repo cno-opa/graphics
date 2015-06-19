@@ -138,6 +138,8 @@ lineOPA <- function(data, x, y, title = "Title!", group = 1, percent = FALSE, cu
   #make y variable continuous
   data[y] <- as.numeric(data[y][[1]])
 
+  lab.size = as.numeric(lab.size)
+
   #get max y value
   ymax <- max(data[y], na.rm = TRUE)
 
