@@ -1,10 +1,10 @@
-# mappers.r
+# mappers.R
 # Some useful functions that make working with spatial data in R much easier
 # Most functions are only useful for New Orleans data, though some can be adapted/generalized for use in other areas
 
 
 ### Init
-setInternet2(TRUE)
+setInternet2(TRUE) 
 library(grid)
 library(gridExtra)
 library(gtable)
@@ -21,6 +21,42 @@ library(leafletR)
 theme_set(theme_opa()) #theme_opa() lives in plotters.R
 
 ### Functions for getting and processing Spatial data
+
+####R Studio version
+zipToSpatial <- function(file.source){
+  #given a dl link, downloads a shapefile and converts to spatial object
+  #(this is a general function and can be used for most zipped spatial data regardless of type or location.
+  #It has some limitations in the way data is organized. The zipped files must be:
+  #A. In the first level of the zipped file (this is how data is most commonly structured).
+  #B. In a folder within the zipped file. The folder can be the only item in the first level of the zipped file.
+  #See help(readOGR) for more details on reading spatial data into R.
+
+  #set up temporary directory for unzipping
+  zip.dir <- "JunkDataForZips"
+  dir.create(zip.dir)
+  file.land <- paste0(getwd(),"/", zip.dir, "/zipped_data.zip")
+
+  #download and unzip file to temp directory (check if this works on work comp...if not set up junk folder within working directory)
+  download.file(url=file.source, destfile=file.land, mode="wb")
+  unzip(file.land, exdir=zip.dir)
+
+  #read shp as R Spatial object. Either downloads files directly, or if the files are within another directory of the zip file, looks within those
+  files <- list.files(zip.dir)
+  if(length(files)>=3){
+    file.trunk <- sub("^([^.]*).*", "\\1", files)[1]
+    shp <- readOGR(dsn=zip.dir, layer=file.trunk)
+  } else{
+    files.2 <- paste0(zip.dir, "\\", files)
+    files.in <- list.files(files.2)
+    files.in.trunk <- sub("^([^.]*).*", "\\1", files.in)[1]
+    shp <- readOGR(dsn=paste0(zip.dir,"\\", files), layer=files.in.trunk)
+  }
+
+  unlink(paste0(getwd(),"/JunkDataForZips"), recursive = TRUE)
+  return(shp)
+}
+
+
 zipToSpatial <- function(file.source){
 	#given a dl link, downloads a shapefile and converts to spatial object
 	#(this is a general function and can be used for most zipped spatial data regardless of type or location.
@@ -117,7 +153,7 @@ csvFromWeb <- function(file.source){
 	return(csv)
 }
 
-toSpatialPoints <- function(df, X, Y, remove.outliers=FALSE, nola.only=TRUE){
+toSpatialPoints <- function(df, X, Y, remove.outliers=FALSE, nola.only=TRUE, ..., p4string){
 	#Converts a data.frame into a SpatialPointsDataFrame
 	#Should only be used for data around New Orleans (though it could be adapted for use in other areas)
 	#df: a data.frame with coordinates
@@ -125,7 +161,11 @@ toSpatialPoints <- function(df, X, Y, remove.outliers=FALSE, nola.only=TRUE){
 	#Y: column name of y coordinates
 	#remove.outliers: remove points with >50% difference than mean x or y?
 	#nola.only: remove points that outside of Orleans Parish boundaries?
+	#
+	#also takes the optional argument p4string, the proj4string
+	#
 
+	dots <- list(...)
 	#get coordinates in df and remove missing points
 	coords.df <- cbind(as.numeric(unlist(df[X])),as.numeric(unlist(df[Y])))
 	has.coords <- complete.cases(coords.df)
@@ -146,10 +186,11 @@ toSpatialPoints <- function(df, X, Y, remove.outliers=FALSE, nola.only=TRUE){
 		coords.df <- coords.df[valid.coords,]
 	}
 
-	#makes Spatial object, guessing if the coordinates are in the LA South Stateplane or longlat coordinate system
-	if(mean(coords.df[,1]>1000, na.rm=TRUE)>=.8){
-	spatial.points <- SpatialPointsDataFrame(coords=coords.df, df, proj4string=
-		CRS("+proj=lcc +lat_1=29.3 +lat_2=30.7 +lat_0=28.5 +lon_0=-91.33333333333333 +x_0=999999.9999999999 +y_0=0 +datum=NAD83 +units=us-ft +no_defs +ellps=GRS80 +towgs84=0,0,0"))
+	#makes Spatial object
+	#if no p4string is given, assumes that the coordinates are in the LA South Stateplane or WGS84 coordinate system
+	if(!is.null(dots$p4string)){ spatial.points <- SpatialPointsDataFrame(coords = coords.df, df, proj4string = CRS(p4string))
+	} else if(mean(coords.df[,1]>1000, na.rm=TRUE)>=.8){
+		spatial.points <- SpatialPointsDataFrame(coords=coords.df, df, proj4string=CRS("+init=epsg:3452"))
 		} else{spatial.points <- SpatialPointsDataFrame(coords=coords.df, df, proj4string=CRS("+init=epsg:4326"))}
 	if(nola.only==TRUE){
 		nola <- getNOLA()
@@ -186,8 +227,6 @@ geopinsToPoints <- function(df, geopin.col="GEOPIN"){
 	df.coords <- data.frame(coordinates(parcels.sub))
 	colnames(df.coords) <- c("X","Y")
 	df <- cbind(df.coords, df)
-	#just.geo <- cbind(df.coords, just.geo)
-	#df.final <- merge(just.geo, just.attr)
 	df.coords <- select(df, c(X, Y))
 	df.sp <- SpatialPointsDataFrame(coords=df.coords, data=df, proj4string=NOLA.proj)
 	df.sp <- df.sp[, -which(names(df.sp) == "ID.for.match")]
@@ -195,7 +234,7 @@ geopinsToPoints <- function(df, geopin.col="GEOPIN"){
 }
 
 ### Mapping functions
-mapOPApoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.031742, 29.996680), zoom = 12, style = "single", fill = "black", old.map = "new", labs = "", ...){
+mapOPApoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.031742, 29.996680), zoom = 12, style = "single", fill = "black", old.map = "new", ...){
 # Given a data.frame or SpatialPointsDataFrame, creates a points map.
 # pts: df or SpatialPoints object
 # X: field name with X values
@@ -296,7 +335,7 @@ mapOPApoints <- function(pts, X, Y,size = 1, title = "Map!", location = c(-90.03
 mapOPApoly <- function(geom, poly.dat="", id.var="", title="Map!", location=c(-90.031742, 29.996680), zoom=12,
 	style="single", fill="black", alpha=.5, piping=FALSE, old.map="new", plot.all=FALSE, ...){
 # maps polygons, given either a SpatialPolygons object OR a common geography type and a table of characteristics
-# geom: either a SpatialPolygons object or one of c("parcels", "blocks", "BGs", "tracts")
+# geom: either a SpatialPolygons object or one of c("parcels", "blocks", "BGs", "tracts", "nbhds", "council")
 # poly.dat: if geom is a geography type, data frame containing information about the geography
 # id.var: if poly.dat is present, the name of the column with common ID vars as geom
 	# either geopins for parcels or GEOID10 for census
@@ -307,7 +346,9 @@ mapOPApoly <- function(geom, poly.dat="", id.var="", title="Map!", location=c(-9
 
 	#if relevant, get geometric data
 	if(is.character(geom)){
-		if(geom == "parcels"){
+		if(geom == "council"){
+			geom <- getCouncil()
+		} else if(geom == "parcels"){
 			geom <- getParcels()
 		} else if(geom == "blocks"){
 			geom <- getBlocks()
@@ -315,6 +356,8 @@ mapOPApoly <- function(geom, poly.dat="", id.var="", title="Map!", location=c(-9
 			geom <- getBGs()
 		} else if(geom == "tracts"){
 			geom <- getTracts()
+		} else if(geom == "nbhds"){
+			geom <- getNbhds()
 		}
 
 		#not very elegant way to figure out which columns should be used as the ids in the match, then combining data frames
@@ -578,7 +621,7 @@ mapOPAMultiLeaflet <- function(spatial.list, fields, spatial.names, title, base.
 
 
 ### Analysis
-countWithin <- function(within, around, return.type="vec", ..., range){
+countWithin <- function(within, around, col.name = as.character(bquote(within)), return.type="vec", ..., range){
 #Answers a common spatial analysis question: How many of one object are within another?
 #To adapt this function to answer similar questions, see help(over)
 #
@@ -607,11 +650,17 @@ countWithin <- function(within, around, return.type="vec", ..., range){
 		around.poly <- around
 	}
 
+	#getName <- function(v1){deparse(substitute(v1))}
+	#getName <- function(v1){as.character(bquote(v1))}
+	#final.name <- paste0("count.of.", col.name)
+
 	if(return.type=="points"){
-		around$count.within <- count.within
+		around$poly.name <- count.within
+		names(around)[which(names(around) == "poly.name")] <- col.name
 		return(around)
 	} else if(return.type=="poly"){
-		around.poly$count.within <- count.within
+		around.poly$poly.name <- count.within
+		names(around.poly)[which(names(around.poly) == "poly.name")] <- col.name
 		return(around.poly)
 	} else if(return.type=="vec"){
 		return(count.within)
