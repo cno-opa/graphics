@@ -255,6 +255,7 @@ lineOPA <- function(data, x, y, title = "Title!", group = 1, percent = FALSE, cu
 
   return(base)
 }
+
 barOPA <- function(data, x, y, title = "Title", stat = "identity", position = "identity", percent = FALSE, currency = FALSE, ...) {
   # set fill with `fill = "variable"` if you have multiple groups
   # set y-axis label with `ylab = "label"`
@@ -264,11 +265,7 @@ barOPA <- function(data, x, y, title = "Title", stat = "identity", position = "i
   dots <- eval(substitute(alist(...)))
 
   #get max y value and set breaks
-  if( !is.null(dots$fill) ) {
-	ytots <- aggregate(data[y],data[x],sum)
-    ymax <- max(ytots[y])
-  }
-  else{ymax <- max(data[y], na.rm = TRUE)}
+  ymax <- max(data[y], na.rm = TRUE)
   brks <- pretty_breaks(4, min.n = 4)(0:ymax)
   yul  <- brks[length(brks)]
 
