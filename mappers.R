@@ -95,49 +95,49 @@ zipToSpatial <- function(file.source){
 getNOLA <- function(){
 	if(exists("nola.abc.abc")==FALSE){
 		nola <- zipToSpatial("http://data.nola.gov/api/geospatial/2b2j-u6kh?method=export&format=Shapefile")
-		nola.abc.abc <<- nola
+		nola.abc.abc <- nola
 		} else{nola <- nola.abc.abc}
 	return(nola)
 }
 getCouncil <- function(){
 	if(exists("council.abc.abc")==FALSE){
 		council <- zipToSpatial("http://data.nola.gov/api/geospatial/24es-ghzz?method=export&format=Shapefile")
-		council.abc.abc <<- council
+		council.abc.abc <- council
 	} else{council <- council.abc.abc}
 	return(council)
 }
 getNbhds <- function(){
 	if(exists("nbhds.abc.abc")==FALSE){
 		nbhds <- zipToSpatial("https://data.nola.gov/api/geospatial/ukvx-5dku?method=export&format=Shapefile")
-		nbhds.abc.abc <<- nbhds
+		nbhds.abc.abc <- nbhds
 	} else{nbhds <- nbhds.abc.abc}
 	return(nbhds)
 }
 getParcels <- function(){
 	if(exists("parcels.abc.abc")==FALSE){
 		parcels <- zipToSpatial("http://data.nola.gov/api/geospatial/e962-egyh?method=export&format=Shapefile")
-		parcels.abc.abc <<- parcels
+		parcels.abc.abc <- parcels
 		} else{parcels <- parcels.abc.abc}
 	return(parcels)
 }
 getBlocks <- function(){
 	if(exists("blocks.abc.abc")==FALSE){
 		blocks <- zipToSpatial("http://www.norpc.org/assets/pdf-documents/zip/orl_census2010_block_pl.zip")
-		blocks.abc.abc <<- blocks
+		blocks.abc.abc <- blocks
 	} else{blocks <- blocks.abc.abc}
 	return(blocks)
 }
 getBGs <- function(){
 	if(exists("BGs.abc.abc")==FALSE){
 		BGs <- zipToSpatial("http://www.norpc.org/assets/pdf-documents/zip/orl_census2010_blockgrp_pl.zip")
-		BGs.abc.abc <<- BGs
+		BGs.abc.abc <- BGs
 	} else{BGs <- BGs.abc.abc}
 	return(BGs)
 }
 getTracts <- function(){
 	if(exists("tracts.abc.abc")==FALSE){
 		tracts <- zipToSpatial("http://www.norpc.org/assets/pdf-documents/zip/orl_census2010_tract_pl.zip")
-		tracts.abc.abc <<- tracts
+		tracts.abc.abc <- tracts
 	} else{tracts <- tracts.abc.abc}
 	return(tracts)
 }
