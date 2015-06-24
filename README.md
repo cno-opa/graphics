@@ -27,3 +27,6 @@ source_https <- function(u, unlink.tmp.certs = FALSE) {
  See how [the stat template](https://github.com/cno-opa/stat-template) incorporates this into `main.R`
 
 Thanks to [Tony Breyal for the above function](https://tonybreyal.wordpress.com/2011/11/24/source_https-sourcing-an-r-script-from-github/).
+
+
+For mappers.R, see this [tutorial](http://rpubs.com/djknaggs/mappers-tutorial).
