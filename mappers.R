@@ -31,8 +31,7 @@ zipToSpatial <- function(file.source){
   # B. In a folder within the zipped file. The folder should be the only item in the first level of the zipped file.
   # See help(readOGR) for more details on reading spatial data into R.
 
-  # set up temporary directory for unzipping	
-	zip.dir <- "JunkDataForZips"
+wdMethod <- function(){		zip.dir <- "JunkDataForZips"
   dir.create(zip.dir)
   file.land <- paste0(getwd(),"/", zip.dir, "/zipped_data.zip")
 
@@ -47,16 +46,82 @@ zipToSpatial <- function(file.source){
     shp <- readOGR(dsn=zip.dir, layer=file.trunk)
   } else{
     files.2 <- paste0(zip.dir, "\\", files)
-    files.2 <- files.2[!grepl("zipped_data.zip", dsn)]
+    files.2 <- files.2[!grepl("zipped_data.zip", files.2)]
 		files.in <- list.files(files.2)
     files.in.trunk <- sub("^([^.]*).*", "\\1", files.in)[1]
     shp <- readOGR(dsn=files.2, layer=files.in.trunk)
   }
 
   unlink(paste0(getwd(),"/", zip.dir), recursive = TRUE)
-  
-	return(shp)
 }
+
+	tempMethod <- function(){
+ ### Method 2: sets up a temporary directory and downloads there
+                zip.dir <- tempfile()
+                dir.create(zip.dir)
+                file.land <- "zipped_data.zip"
+
+                #download and unzip file to temp directory (check if this works on work comp...if not set up junk folder within working directory)
+                download.file(url=file.source, destfile=file.land, mode="wb")
+                unzip(file.land, exdir=zip.dir)
+
+                #read shp as R Spatial object. Either downloads files directly, or if the files are within another directory of the zip file, looks within those
+                files <- list.files(zip.dir)
+                if(length(files)>=3){
+                                file.trunk <- sub("^([^.]*).*", "\\1", files)[1]
+                                shp <- readOGR(dsn=zip.dir, layer=file.trunk)
+                } else{
+                                files.2 <- paste0(zip.dir, "\\", files)
+                                files.in <- list.files(files.2)
+                                files.in.trunk <- sub("^([^.]*).*", "\\1", files.in)[1]
+                                shp <- readOGR(dsn=paste0(zip.dir,"\\", files), layer=files.in.trunk)
+                }
+
+                file.remove(file.land)
+                unlink(zip.dir)
+                return(shp)
+}
+	
+wdMethod()
+return(shp)
+}
+
+
+zipToSpatial <- function(file.source){
+                #given a dl link, downloads a shapefile and converts to spatial object
+                #(this is a general function and can be used for most zipped spatial data regardless of type or location.
+                #It has some limitations in the way data is organized. The zipped files must be:
+                                #A. In the first level of the zipped file (this is how data is most commonly structured).
+                                #B. In a folder within the zipped file. The folder can be the only item in the first level of the zipped file.
+                #See help(readOGR) for more details on reading spatial data into R.
+
+                #set up temporary directory for unzipping
+                zip.dir <- tempfile()
+                dir.create(zip.dir)
+                file.land <- "zipped_data.zip"
+
+                #download and unzip file to temp directory (check if this works on work comp...if not set up junk folder within working directory)
+                download.file(url=file.source, destfile=file.land, mode="wb")
+                unzip(file.land, exdir=zip.dir)
+
+                #read shp as R Spatial object. Either downloads files directly, or if the files are within another directory of the zip file, looks within those
+                files <- list.files(zip.dir)
+                if(length(files)>=3){
+                                file.trunk <- sub("^([^.]*).*", "\\1", files)[1]
+                                shp <- readOGR(dsn=zip.dir, layer=file.trunk)
+                } else{
+                                files.2 <- paste0(zip.dir, "\\", files)
+                                files.in <- list.files(files.2)
+                                files.in.trunk <- sub("^([^.]*).*", "\\1", files.in)[1]
+                                shp <- readOGR(dsn=paste0(zip.dir,"\\", files), layer=files.in.trunk)
+                }
+
+                file.remove(file.land)
+                unlink(zip.dir)
+                return(shp)
+}
+
+
 
 # Some common wrappers for zipToSpatial (can take a while to run, especially for smaller geographies.
 # If the data has been pulled once in a session, an archived copy is used)
@@ -224,7 +289,6 @@ prettyLabs <- function(brks){
 
 	return(labs)
 }
-
 
 ### Mapping functions
 mapOPAPoints <- function(pts, X, Y, size = 1, title = "Map!", location = c(-90.031742, 29.996680), zoom = 12, style = "single", fill = "black", old.map = "new", map_source = "stamen", map_type = "toner-lite", ...){
@@ -409,7 +473,7 @@ mapOPAPoly <- function(geom, poly.dat="", id.var="", title="Map!", location=c(-9
 		if(!is.null(dots$breaks)){
 			breaks <- dots$breaks
 			if(is.numeric(breaks)){
-				brks <- append(breaks, max(style.col))
+				brks <- append(breaks, max(style.col, na.rm = TRUE))
 			} else{
 				brks <- classIntervals(style.col, n = length(fill), style = breaks)$brks
 			}
@@ -582,8 +646,6 @@ mapOPALeaflet <- function(spatial, fields, style = "", title, base.map = "osm", 
 	browseURL(final.map)
 }
 
-
-
 mapOPAMultiLeaflet <- function(spatial.list, fields, spatial.names, title, base.map = "osm", fill="black", geojson.exists = FALSE, ...){
 	# maps multiple Spatial objects on an interactive leaflet map
 	# note that even for moderately sized objects, writing the geojsons can take a while
@@ -672,10 +734,12 @@ countWithin <- function(within, around, col.name = as.character(bquote(within)),
 	if(return.type=="points"){
 		around$poly.name <- count.within
 		names(around)[which(names(around) == "poly.name")] <- col.name
+		around <- spTransform(around, around.crs)
 		return(around)
 	} else if(return.type=="poly"){
 		around.poly$poly.name <- count.within
 		names(around.poly)[which(names(around.poly) == "poly.name")] <- col.name
+		around.poly <- spTransform(around.poly, around.crs)
 		return(around.poly)
 	} else if(return.type=="vec"){
 		return(count.within)
@@ -683,7 +747,8 @@ countWithin <- function(within, around, col.name = as.character(bquote(within)),
 }
 
 inWhich <- function(within, around, char){
-	# For a set of points, finds the characteristics of polygons that each point lies within
+	# For a set of points, finds the characteristics of polygons that each point lies within 
+	# this function also works for polygons in other polgyons (and other geometry comparisons), but has not been well tested
 	# useful for finding which council district, census tract, etc. a set of points is in
 	# within: points for which to find characteristics
 	# around: a set of polygons
