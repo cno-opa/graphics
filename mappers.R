@@ -1,9 +1,7 @@
 # mappers.R
-# Some useful functions that make working with spatial data in R much easier
-# Most functions are only useful for New Orleans data, though some can be adapted/generalized for use in other areas
+# Functions for easy mapping and spatial analysis in R. Most functions should only be used with data from the New Orleans area and with data that is either in the WGS84 or NAD83 Lousiana South (ft) coordinate systems, though functions can be adapted for broader uses.
 
-
-### Init
+# Init
 setInternet2(TRUE)
 library(grid)
 library(gridExtra)
@@ -21,7 +19,7 @@ library(leafletR)
 NOLA.proj <- CRS("+init=epsg:3452")
 latlon.proj <- CRS("+init=epsg:4326")
 
-### Functions for getting and processing Spatial data
+# Functions for getting and processing Spatial data
 
 zipToSpatial <- function(file.source){
   # Given a dl link, downloads a shapefile and converts to Spatial object
@@ -81,7 +79,7 @@ wdMethod <- function(){		zip.dir <- "JunkDataForZips"
                 unlink(zip.dir)
                 return(shp)
 }
-	
+
 wdMethod()
 return(shp)
 }
@@ -273,17 +271,17 @@ prettyLabs <- function(brks){
 	for(i in 1:(length(brks)-3)){
 
 	i <- i+1
-	
+
 	sep.num <- unlist(strsplit(as.character(brks[3]), "\\."))
 	if(length(sep.num) == 1){
 		digits <- 0
 	} else { digits <- nchar(sep.num[2])}
-	increment <-(1/10)^(digits) 
+	increment <-(1/10)^(digits)
 
 	lab <- paste(brks[i]+increment, "-", brks[i+1])
 	labs <- append(labs, lab)
 	}
-		
+
 	lab.n <- paste(">", brks[length(brks)-1] )
 	labs <- append(labs, lab.n)
 
@@ -300,7 +298,7 @@ mapOPAPoints <- function(pts, X, Y, size = 1, title = "Map!", location = c(-90.0
   # title: name of the map
   # location/zoom:  parameters for the basemap...see help(get_map) for more details...defaults give a citywide view of New Orleans
 	#   location can a lon/lat pair, address, or bounding box
-  # style: either "single" for uniform symbols or the column name of pts that should control symbology 
+  # style: either "single" for uniform symbols or the column name of pts that should control symbology
   # fill: point color(s)...if style != "single" this should be a vector equal to the number of classes for factors or high/low values for continuous
   # old.map: either "new" to plot a new map or the name of an existing ggmap to add points
   # map_source: declare "source" argument in "get_map" fn
@@ -311,7 +309,7 @@ mapOPAPoints <- function(pts, X, Y, size = 1, title = "Map!", location = c(-90.0
 	#   if no breaks are given, symvology will be on a continuous scale
   # alpha: 0-1, how opaque should shapes be?
   # labs: label names (for continuous data with breaks). If not supplied, the function attempts to make them with prettyLabels()
-	
+
 	dots <- list(...)
 
 	if(is.data.frame(pts)) {
@@ -368,7 +366,7 @@ mapOPAPoints <- function(pts, X, Y, size = 1, title = "Map!", location = c(-90.0
 	} else if (has.breaks) { # factor/character or numeric with breaks
 
 		if (is.numeric(style.col)) {
-	
+
 			if(is.null(dots$labs)) {
 				labs <- prettyLabs(brks)
 				cats <- cut(x = style.col, breaks = brks, labels = labs, include.lowest = TRUE)
@@ -446,12 +444,12 @@ mapOPAPoly <- function(geom, poly.dat="", id.var="", title="Map!", location=c(-9
 	# convert the SpatialPolygons into a data frame that ggplot can map
 	geom@data$id <- as.numeric(rownames(geom@data))
 	poly.f <- fortify(geom, region="id")
-	names(poly.f)[which(names(poly.f) == "long")] <- "long.xyz.xyz" ##### new 
-	names(poly.f)[which(names(poly.f) == "lat")] <- "lat.xyz.xyz" ##### new 
-	names(poly.f)[which(names(poly.f) == "group")] <- "group.xyz.xyz" ##### new 
+	names(poly.f)[which(names(poly.f) == "long")] <- "long.xyz.xyz" ##### new
+	names(poly.f)[which(names(poly.f) == "lat")] <- "lat.xyz.xyz" ##### new
+	names(poly.f)[which(names(poly.f) == "group")] <- "group.xyz.xyz" ##### new
 	poly.final <- merge(poly.f, geom@data, by="id")
-	
-	
+
+
 	# if making a new map, loads the basemap, otherwise gets the previously made map to add layers
 	if(old.map=="new"){
 		basemap <- get_map(source = map_source, location = location, maptype = map_type, zoom = zoom)
@@ -493,11 +491,11 @@ mapOPAPoly <- function(geom, poly.dat="", id.var="", title="Map!", location=c(-9
 	} else if(has.breaks){
 
 		if(is.numeric(style.col)){
-		
+
 			if(is.null(dots$labs)){
 				labs <- prettyLabs(brks)
 				cats <- cut(x = unlist(poly.final[style]), breaks = brks, labels = labs, include.lowest=TRUE)
-			
+
 			} else{cats <- cut(x = unlist(poly.final[style]), breaks = brks, labels = dots$labs, include.lowest=TRUE)}
 			poly.final[style] <- cats
 		}
@@ -575,14 +573,14 @@ mapOPALeaflet <- function(spatial, fields, style = "", title, base.map = "osm", 
 	# title: name of the map (will also be name of the geojson/html file)
 	# geojson.exists: is there a geojson file already made? Only set TRUE if you just want to play with the styling
 	# simplify.poly: simplify the polygon geometry? (makes the function run faster)
-	
+
 	# optional arguments:
 	# breaks: if style refers to a numeric vector, defines the breakpoints. Can either be a numeric vector the same length as fill or the name of a style in classIntervals()
-	#   if no breaks are given, symvology will be on a continuous scale	
+	#   if no breaks are given, symvology will be on a continuous scale
 	# see help(styleSingle) for all aesthetic controls
-	
+
 	dots <- list(...)
-	
+
 	#Defining aesthetics
 	if(is.null(dots$col)){
 		col <- "black"
@@ -601,20 +599,20 @@ mapOPALeaflet <- function(spatial, fields, style = "", title, base.map = "osm", 
 	} else{fill.alpha <- dots$fill.alpha}
 	if(is.null(dots$legend.text)){
 		legend.text <- title
-	} else{legend.text <- dots$legend.text}	
-	
+	} else{legend.text <- dots$legend.text}
+
 	spatial <- cleanLeaflet(spatial = spatial, fields = fields, simplify.poly = simplify.poly)
-	
+
 	#Define style
 	if(style == "single"){
-	
+
 		sty <- styleSingle(col = col, lwd = lwd, alpha = alpha, fill = fill, fill.alpha = fill.alpha, rad = rad)
 
 	} else if(!is.null(dots$breaks)){
 		breaks <- dots$breaks
 		prop.vec <- unlist(spatial@data[style])
 		prop.num <- as.numeric(as.character(prop.vec))
-			
+
 		if(is.numeric(breaks)){
 			brks <- breaks
 		} else{
@@ -623,23 +621,23 @@ mapOPALeaflet <- function(spatial, fields, style = "", title, base.map = "osm", 
 			}
 		sty <- styleGrad(prop = style, breaks = brks, style.par = "col", style.val = fill, out=1,
 			col = col, lwd = lwd, alpha = alpha, fill.alpha = fill.alpha, rad = rad, leg = legend.text)
-	
+
 	} else {  #cat/grad radius not currently supported, though its relatively easy to adapt code
-		
+
 		prop.vec <- unlist(spatial@data[style])
-		prop.vec <- as.character(prop.vec)	
-		
+		prop.vec <- as.character(prop.vec)
+
 		if(is.null(dots$val)){
 			val <- levels(as.factor(prop.vec))
 			} else{val <- dots$val}
-			
+
 		sty <- styleCat(prop = style, val = val, style.par = "col", style.val = fill, col = col, lwd = lwd, alpha = alpha, fill.alpha = fill.alpha, rad = rad, leg = legend.text)
-	
+
 	}
-	
+
 	#Make and pull up leaflet map (creates folder with html map in your wd)
 	map.name <- title
-	leafdat <- paste0(getwd(), "/", title, ".geojson") 
+	leafdat <- paste0(getwd(), "/", title, ".geojson")
 
 	if(geojson.exists == FALSE){toGeoJSON(data = spatial, name = title)}
 	final.map <- leaflet(data = leafdat, style = sty, title=title, base.map=base.map, incl.data=TRUE,  popup=names(spatial))
@@ -747,7 +745,7 @@ countWithin <- function(within, around, col.name = as.character(bquote(within)),
 }
 
 inWhich <- function(within, around, char){
-	# For a set of points, finds the characteristics of polygons that each point lies within 
+	# For a set of points, finds the characteristics of polygons that each point lies within
 	# this function also works for polygons in other polgyons (and other geometry comparisons), but has not been well tested
 	# useful for finding which council district, census tract, etc. a set of points is in
 	# within: points for which to find characteristics
