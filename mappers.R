@@ -85,7 +85,6 @@ wdMethod()
 return(shp)
 }
 
-
 zipToSpatial <- function(file.source){
                 #given a dl link, downloads a shapefile and converts to spatial object
                 #(this is a general function and can be used for most zipped spatial data regardless of type or location.
@@ -203,6 +202,11 @@ toSpatialPoints <- function(df, X, Y, remove.outliers=FALSE, nola.only=TRUE, ...
 	has.coords <- complete.cases(coords.df)
 	df <- df[has.coords,]
 	coords.df <- coords.df[has.coords,]
+
+  # hack for when df is just one row long -- ln 206 needs to be refactored
+  if(is.null(nrow(coords.df))) {
+    coords.df <- matrix(coords.df, nrow = 1, ncol = 2)
+  }
 
 	# remove outlier points (defined as having >50% difference from mean)
 	if(remove.outliers==TRUE){
