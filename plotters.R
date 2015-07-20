@@ -62,7 +62,7 @@ theme_opa <- function (base_size = 14, base_family = "")
     panel.border = element_blank(),
     panel.grid.major = element_line(colour = "white"),
     panel.grid.major.x = element_blank(),
-    panel.grid.major.y = element_line(colour = "grey40"),
+    panel.grid.major.y = element_line(colour = "grey70"),
     panel.grid.minor = element_blank(),
     panel.margin = unit(0.25, "lines"),
     panel.margin.x = NULL,
@@ -173,7 +173,7 @@ buildChart <- function(p) {
   return(built)
 }
 
-lineOPA <- function(data, x, y, title = "Title!", group = 1, percent = FALSE, currency = FALSE, last_label = TRUE, lab.size = 4, ...) {
+lineOPA <- function(data, x, y, title = "Title!", group = 1, percent = FALSE, currency = FALSE, last_label = TRUE, lab.size = 4, min_date_labels = FALSE, ...) {
   # most of the options are passed as dots parameters:
   # set data labels with `labels = "label_column"`
   # set highlight with `highlight = "group_to_highlight"`
@@ -304,6 +304,11 @@ lineOPA <- function(data, x, y, title = "Title!", group = 1, percent = FALSE, cu
 
       base <- base + scale_y_continuous(breaks = brks) + expand_limits(y = c(0, yul))
     }
+  }
+
+  if ( min_date_labels == TRUE ) {
+    labs <- ifelse(grepl("[Jj]an", data[x][[1]]), as.character(data[x][[1]]), substr(data[x][[1]], 1, 1))
+    base <- base + scale_x_discrete(breaks = data[x][[1]], labels = labs)
   }
 
   return(base)
