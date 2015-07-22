@@ -113,8 +113,8 @@ theme_opa_minimal <- function (base_size = 14, base_family = "")
 
     panel.background = element_rect(fill = "white", colour = NA),
     panel.border = element_blank(),
-    panel.grid.major = element_line(colour = "gray90"),
-    panel.grid.minor = element_line(colour = "gray90"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
     panel.margin = unit(0.25, "lines"),
     panel.margin.x = NULL,
     panel.margin.y = NULL,
