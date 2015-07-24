@@ -236,8 +236,13 @@ lineOPA <- function(data, x, y, title = "Title!", group = 1, percent = FALSE, cu
   if( !is.null(dots$labels) & last_label == TRUE ) {
     #hacky way to get labels data when there is more than one series. pulls all data in df for the named period
     getLabelsData <- function() {
-      if(group != 1) {
+      if(group != 1 & exists("r_period")) {
         d <- data[data[x] == r_period,]
+        return(d)
+      } else if (group!= 1 & !exists("r_period")) {
+        data_ <- data[complete.cases(data),]
+        last_x <- data_[x][nrow(data_),]
+        d <- data_[data_[,x] == last_x,]
         return(d)
       } else {
         return(data[nrow(data), ])
