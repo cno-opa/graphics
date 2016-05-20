@@ -22,14 +22,31 @@
 library("grid")
 library("gridExtra")
 library("gtable")
+library("ggplot2")
+require(lubridate)
+require(zoo)
+require(dplyr)
 require(ggplot2)
+require(scales)
+require(reshape2)
+require(maps)
+require(maptools)
+require(sp)
+require(rgdal)
+require(jsonlite)
+require(dplyr)
+require(rgeos)
+require(RColorBrewer)
+require(classInt)
+require(ggmap)
+
 
 theme_opa <- function (base_size = 14, base_family = "")
 {
   theme(
     line = element_line(colour = "black", size = 0.5, linetype = 1, lineend = "butt"),
     rect = element_rect(fill = "white", colour = "black", size = 0.5, linetype = 1),
-    text = element_text(family = base_family, face = "plain", colour = "black", size = base_size, hjust = 0.5, vjust = 0.5, angle = 0, lineheight = 0.9),
+    text = element_text(family = base_family, face = "plain", colour = "black", size = base_size, hjust = 0.5, vjust = 0.5, angle = 0, lineheight = 0.9,margin = margin(), debug = FALSE),
 
     axis.text = element_text(size = rel(0.6), colour = "grey50"),
     strip.text = element_text(size = rel(0.8)),
@@ -41,7 +58,7 @@ theme_opa <- function (base_size = 14, base_family = "")
     axis.title.x = element_text(),
     axis.title.y = element_text(angle = 90),
     axis.ticks.length = unit(0.15, "cm"),
-    axis.ticks.margin = unit(0.1, "cm"),
+    #axis.ticks.margin = unit(0.1, "cm"),
 
     legend.background = element_rect(colour = NA),
     legend.margin = unit(0.2, "cm"),
@@ -67,6 +84,7 @@ theme_opa <- function (base_size = 14, base_family = "")
     panel.margin = unit(0.25, "lines"),
     panel.margin.x = NULL,
     panel.margin.y = NULL,
+    
 
     strip.background = element_rect(fill = "grey80", colour = NA),
     strip.text.x = element_text(),
@@ -75,6 +93,20 @@ theme_opa <- function (base_size = 14, base_family = "")
     plot.background = element_rect(colour = "white"),
     plot.title = element_text(size = rel(1.2), hjust = 0.05),
     plot.margin = unit(c(1, 1, 1, 1), "lines"),
+    
+    ##new additions for ggplot2 2.1.0
+    
+    # new parameter has been added to package
+    panel.ontop = FALSE,
+    
+    # modified to accomodate deprecated axis.ticks.margin in ggplot2 2.1.0
+    axis.text.x = element_text(vjust = 1, angle = 45, hjust = .97,margin = unit(0.1, "cm")),
+    axis.text.y = element_text(hjust = 1,margin = unit(0.1, "cm")),
+    
+    #missing elements generating warnings 
+    strip.switch.pad.grid = grid::unit(0, 'cm'),
+    strip.switch.pad.wrap = grid::unit(0, 'cm'),
+    axis.line.x = element_blank(),
     complete = TRUE)
 }
 
@@ -88,13 +120,12 @@ theme_opa_minimal <- function (base_size = 14, base_family = "")
     axis.text = element_text(size = rel(0.6), colour = "grey70"),
     strip.text = element_text(size = rel(0.8)),
     axis.line = element_line(colour = "gray70"),
-    axis.text.x = element_text(vjust = 1, angle = 45, hjust = .97),
-    axis.text.y = element_text(hjust = 1),
+    
     axis.ticks = element_line(colour = "gray70"),
     axis.title.x = element_text(),
     axis.title.y = element_text(angle = 90),
     axis.ticks.length = unit(0.15, "cm"),
-    axis.ticks.margin = unit(0.1, "cm"),
+    # deprecated (axis.ticks.margin = unit(0.1, "cm"),)
 
     legend.background = element_rect(colour = NA),
     legend.margin = unit(0.2, "cm"),
@@ -118,7 +149,7 @@ theme_opa_minimal <- function (base_size = 14, base_family = "")
     panel.margin = unit(0.25, "lines"),
     panel.margin.x = NULL,
     panel.margin.y = NULL,
-
+    
     strip.background = element_rect(fill = "grey80", colour = NA),
     strip.text.x = element_text(),
     strip.text.y = element_text(angle = -90),
@@ -126,6 +157,22 @@ theme_opa_minimal <- function (base_size = 14, base_family = "")
     plot.background = element_rect(colour = "white"),
     plot.title = element_text(size = rel(1.2), hjust = 0.05),
     plot.margin = unit(c(1, 1, 1, 1), "lines"),
+    
+    ##new additions for ggplot2 2.1.0
+    
+    # new parameter has been added to package
+    panel.ontop = FALSE,
+    
+    # modified to accomodate deprecated axis.ticks.margin in ggplot2 2.1.0
+    axis.text.x = element_text(vjust = 1, angle = 45, hjust = .97,margin = unit(0.1, "cm")),
+    axis.text.y = element_text(hjust = 1,margin = unit(0.1, "cm")),
+    axis.line.x = element_blank(),
+    
+    #missing elements generating warnings 
+    strip.switch.pad.grid = grid::unit(0, 'cm'),
+    strip.switch.pad.wrap = grid::unit(0, 'cm'),
+    axis.line.x = element_blank(),
+      
     complete = TRUE)
 }
 
