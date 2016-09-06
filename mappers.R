@@ -3,7 +3,6 @@
 # Most functions should only be used with data from the New Orleans area and with data that is either in the WGS84 or NAD83 Lousiana South (ft) coordinate systems, though functions can be adapted for broader uses.
 
 # Init
-setInternet2(TRUE)
 library(grid)
 library(gridExtra)
 library(gtable)
